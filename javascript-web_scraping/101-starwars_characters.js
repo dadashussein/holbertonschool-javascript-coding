@@ -1,31 +1,32 @@
 #!/usr/bin/node
 const request = require('request');
+
 const doRequest = (url) => {
   return new Promise((resolve, reject) => {
     request(url, (error, response) => {
       if (!error && response.statusCode === 200) {
         resolve(response.body);
       } else {
-        reject(error);
+        reject(error || new Error(`Failed to load ${url}, status code: ${response.statusCode}`));
       }
     });
   });
 };
-request(`https://swapi-api.hbtn.io/api/films/${process.argv[2]}`, async (error, response) => {
-  if (error) {
-    console.log(error);
-    return;
+
+const fetchCharacterNames = async (filmId) => {
+  try {
+    const filmResponse = await doRequest(`https://swapi-api.hbtn.io/api/films/${filmId}`);
+    const characterUrls = JSON.parse(filmResponse).characters;
+
+    const promises = characterUrls.map(url =>
+      doRequest(url).then(response => JSON.parse(response).name)
+    );
+
+    const characterNames = await Promise.all(promises);
+    characterNames.forEach(name => console.log(name));
+  } catch (error) {
+    console.error('Error fetching data:', error);
   }
-  const data = JSON.parse(response.body).characters;
-  for (const charackter of data) {
-    async function fetchName () {
-      try {
-        const response = await doRequest(charackter);
-        console.log(JSON.parse(response).name);
-      } catch (error) {
-        console.log(error);
-      }
-    }
-    fetchName();
-  }
-});
+};
+
+fetchCharacterNames(process.argv[2]);
